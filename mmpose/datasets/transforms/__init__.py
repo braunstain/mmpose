@@ -13,6 +13,10 @@ from .loading import LoadImage
 from .mix_img_transforms import Mosaic, YOLOXMixUp
 from .pose3d_transforms import RandomFlipAroundRoot
 from .topdown_transforms import TopdownAffine
+from .occlusion_weights import OcclusionWeighting
+from .debug_keys import DebugKeys
+from .lja_occ import LimbJointAugmentation
+from .DumpAugmentedSamples import DumpAugmentedSamples
 
 __all__ = [
     'GetBBoxCenterScale', 'RandomBBoxTransform', 'RandomFlip',
@@ -22,5 +26,5 @@ __all__ = [
     'GenerateTarget', 'KeypointConverter', 'RandomFlipAroundRoot',
     'FilterAnnotations', 'YOLOXHSVRandomAug', 'YOLOXMixUp', 'Mosaic',
     'BottomupRandomCrop', 'BottomupRandomChoiceResize', 'HandRandomFlip',
-    'SingleHandConverter'
+    'SingleHandConverter', 'OcclusionWeighting', 'DebugKeys', 'DumpAugmentedSamples', 'LimbJointAugmentation'
 ]
