@@ -204,17 +204,6 @@ class DynamicStructuralSimCCLoss(nn.Module):
         # apply target weights
         loss_nk = loss_nk * w_limb
 
-        # optional extra masking like KLDiscretLoss
-        if self.mask is not None:
-            # mask indices refer to original K indexing
-            # If any of them are limb joints, apply mask_weight
-            for idx in self.mask:
-                if 0 <= idx < K and limb_mask[idx]:
-                    # find its column in the filtered limb tensor
-                    col = self.limb_joint_indices.index(idx) if idx in self.limb_joint_indices else None
-                    if col is not None and col < loss_nk.size(1):
-                        loss_nk[:, col] = loss_nk[:, col] * self.mask_weight
-
         denom = (w_limb.sum() + EPS)
         base = loss_nk.sum() / denom
 

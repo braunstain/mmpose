@@ -4,7 +4,7 @@ _base_ = ['../../../_base_/default_runtime.py']
 
 # ===== Runtime =====
 max_epochs = 5
-base_lr = 1e-4  # gentle fine-tune
+base_lr = 5e-5  # gentle fine-tune
 train_cfg = dict(max_epochs=max_epochs, val_interval=1)
 randomness = dict(seed=21)
 
@@ -100,6 +100,18 @@ model = dict(
             beta=10.0,
             label_softmax=True
         ),
+        struct_loss=dict(
+            type='DynamicStructuralSimCCLoss',
+            beta=10.0,                # keep same as KLDiscretLoss
+            label_softmax=True,       # keep same behavior
+            label_beta=10.0,          # safe default; can match your KL if you use it
+            use_target_weight=True,
+            loss_weight=5,         # start SMALL (0.05–0.2). Don't start at 1.0.
+            warmup_epochs=0,          # no struct loss for first 5 epochs
+            ramp_epochs=5,           # then ramp up linearly over 20 epochs
+            schedule='step',              # "linear" or "step" (we find step more stable)
+            include_only_valid_neighbors=True,
+        ),
         decoder=codec
     ),
     # keep this consistent with your baseline eval
@@ -118,6 +130,7 @@ backend_args = dict(backend='local')
 train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
     dict(type='GetBBoxCenterScale'),
+    dict(type='LimbJointAugmentation', p=0.5, occ_ratio=0.15, size_ratio=0.15),
     dict(type='RandomFlip', direction='horizontal'),
     dict(type='RandomHalfBody'),
     dict(
@@ -147,7 +160,7 @@ val_pipeline = [
 ]
 
 train_dataloader = dict(
-    batch_size=64,
+    batch_size=32,
     num_workers=2,
     persistent_workers=True,
     sampler=dict(type='DefaultSampler', shuffle=True),
@@ -171,7 +184,7 @@ val_dataloader = dict(
         type=dataset_type,
         data_root=data_root_och,
         data_mode=data_mode,
-        ann_file='annotations/ochuman_high.json',
+        ann_file='annotations/ochuman_coco_format_test_range_0.00_1.00.json',
         data_prefix=dict(img='images/'),
         test_mode=True,
         pipeline=val_pipeline
@@ -200,7 +213,7 @@ custom_hooks = [
 # ===== Evaluator =====
 val_evaluator = dict(
     type='CocoMetric',
-    ann_file=data_root_och + 'annotations/ochuman_high.json'
+    ann_file=data_root_och + 'annotations/ochuman_coco_format_test_range_0.00_1.00.json'
 )
 test_evaluator = val_evaluator
 

@@ -73,6 +73,7 @@ class RTMCCHead(BaseHead):
             use_rel_bias=False,
             pos_enc=False),
         loss: ConfigType = dict(type='KLDiscretLoss', use_target_weight=True),
+        struct_loss: OptConfigType = None,
         decoder: OptConfigType = None,
         init_cfg: OptConfigType = None,
     ):
@@ -89,6 +90,7 @@ class RTMCCHead(BaseHead):
         self.simcc_split_ratio = simcc_split_ratio
 
         self.loss_module = MODELS.build(loss)
+        self.struct_loss_module = MODELS.build(struct_loss) if struct_loss is not None else None
         if decoder is not None:
             self.decoder = KEYPOINT_CODECS.build(decoder)
         else:
@@ -279,6 +281,28 @@ class RTMCCHead(BaseHead):
         loss = self.loss_module(pred_simcc, gt_simcc, keypoint_weights)
 
         losses.update(loss_kpt=loss)
+        if self.struct_loss_module is not None:
+            # if you don't have epoch yet, this still works (epoch=None => full weight)
+            # epoch = train_cfg.get('epoch', None)
+            epoch = None
+            try:
+                from mmengine import MessageHub
+                hub = MessageHub.get_current_instance()
+                epoch = hub.get_info('epoch')
+            except Exception:
+                pass
+            loss_struct = self.struct_loss_module(pred_simcc, gt_simcc, keypoint_weights, epoch=epoch)
+            losses.update(loss_struct=loss_struct)
+            print(f"loss_kpt: {loss.item():.4f}, loss_struct: {loss_struct.item():.4f}")
+            #print("loss_struct requires_grad:", loss_struct.requires_grad)
+            #print("grad_fn:", loss_struct.grad_fn)
+            # pick a representative param tensor
+            #p = next(self.parameters())
+            #g = torch.autograd.grad(loss, p, retain_graph=True, allow_unused=True)[0]
+            #h = torch.autograd.grad(loss_struct, p, retain_graph=True, allow_unused=True)[0]
+            #print("grad norms:", 
+            #    None if g is None else float(g.norm()),
+            #    None if h is None else float(h.norm()))
 
         # calculate accuracy
         _, avg_acc, _ = simcc_pck_accuracy(
