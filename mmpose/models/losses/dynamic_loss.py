@@ -198,8 +198,8 @@ class DynamicStructuralSimCCLoss(nn.Module):
         log_psy = (psy + EPS).log()
 
         # per (N,K,L) -> per (N,K)
-        loss_x = self.kl(log_psx, gsx).mean(dim=-1)
-        loss_y = self.kl(log_psy, gsy).mean(dim=-1)
+        loss_x = self.kl(log_psx, gsx).sum(dim=-1)
+        loss_y = self.kl(log_psy, gsy).sum(dim=-1)
         loss_nk = loss_x + loss_y  # [N, K]
 
         # only keep limb joints
