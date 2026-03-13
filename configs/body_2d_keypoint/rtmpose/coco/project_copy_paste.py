@@ -100,6 +100,12 @@ model = dict(
             beta=10.0,
             label_softmax=True
         ),
+        struct_loss=dict(
+            type='BoneVectorSimCCLoss',
+            beta=10.0,                # keep same as KLDiscretLoss
+            label_beta=10.0,          # safe default; can match your KL if you use it
+            loss_weight=0.003,         # start SMALL (0.05–0.2). Don't start at 1.0.
+        ),
         decoder=codec
     ),
     # keep this consistent with your baseline eval
@@ -118,25 +124,16 @@ backend_args = dict(backend='local')
 train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
     dict(type='GetBBoxCenterScale'),
-    dict(type='RandomFlip', direction='horizontal'),
-    dict(type='RandomHalfBody'),
     dict(
-        type='RandomBBoxTransform',
-        shift_factor=0.0,
-        scale_factor=[0.9, 1.1],
-        rotate_factor=20
+    type='HumanOccCopyPaste',
+    donor_pool_file='data/train2017/coco_donor_pool.pkl',
+    p=1,
+    scale_range=(0.6, 1),
     ),
+    dict(type='DumpAugmentedSamples'),
     dict(type='TopdownAffine', input_size=codec['input_size']),
-    dict(type='mmdet.YOLOXHSVRandomAug'),
-    dict(
-        type='Albumentation',
-        transforms=[
-            dict(type='Blur', p=0.1),
-            dict(type='MedianBlur', p=0.1),
-        ]
-    ),
     dict(type='GenerateTarget', encoder=codec),
-    dict(type='PackPoseInputs')
+    dict(type='PackPoseInputs'),
 ]
 
 val_pipeline = [
@@ -147,9 +144,9 @@ val_pipeline = [
 ]
 
 train_dataloader = dict(
-    batch_size=64,
+    batch_size=32,
     num_workers=2,
-    persistent_workers=True,
+    persistent_workers=False,
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
         type=dataset_type,
@@ -162,16 +159,16 @@ train_dataloader = dict(
 )
 
 val_dataloader = dict(
-    batch_size=64,
+    batch_size=32,
     num_workers=2,
-    persistent_workers=True,
+    persistent_workers=False,
     drop_last=False,
     sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
     dataset=dict(
         type=dataset_type,
         data_root=data_root_och,
         data_mode=data_mode,
-        ann_file='annotations/val_split/ochuman_non_zero.json',
+        ann_file='annotations/ochuman_non_zero.json',
         data_prefix=dict(img='images/'),
         test_mode=True,
         pipeline=val_pipeline
@@ -200,7 +197,7 @@ custom_hooks = [
 # ===== Evaluator =====
 val_evaluator = dict(
     type='CocoMetric',
-    ann_file=data_root_och + 'annotations/val_split/ochuman_non_zero.json'
+    ann_file=data_root_och + 'annotations/ochuman_non_zero.json'
 )
 test_evaluator = val_evaluator
 

@@ -24,6 +24,10 @@ extreme_anns_occ_count = 0
 high_occ_count = 0
 med_occ_count = 0
 low_occ_count = 0
+zero_occ_count = 0
+non_zero_occ_count = 0
+non_zero_anns = []
+zero_anns = []
 low_anns = []
 mid_anns = []
 high_anns = []
@@ -39,6 +43,9 @@ for ann in coco["annotations"]:
     sum_vis = sum(v == 2 for v in vis)
 
     if (sum_vis + sum_occ) > 0:
+        if sum_occ > 0:
+            non_zero_occ_count += 1
+            non_zero_anns.append(ann)
         if sum_occ / (sum_vis + sum_occ) >= 0.5:
             extreme_anns_occ_count += 1
             extreme_anns.append(ann)
@@ -48,16 +55,23 @@ for ann in coco["annotations"]:
         elif sum_occ / (sum_vis + sum_occ) >= 0.1:
             med_occ_count += 1
             mid_anns.append(ann)    
-        else:
+        elif sum_occ / (sum_vis + sum_occ) > 0.0:
             low_occ_count += 1
             low_anns.append(ann)
+        else:
+            zero_occ_count += 1
+            zero_anns.append(ann)
 
 print(f"Total annotations: {len}")
 print(f"Extreme occlusion: {extreme_anns_occ_count}")
 print(f"High occlusion: {high_occ_count}")
 print(f"Medium occlusion: {med_occ_count}")
 print(f"Low occlusion: {low_occ_count}")
+print(f"Zero occlusion: {zero_occ_count}")
+print(f"Non-zero occlusion: {non_zero_occ_count}")
 
+build_subset(non_zero_anns, coco, "data/OCHuman/annotations/ochuman_non_zero.json")
+build_subset(zero_anns, coco, "data/OCHuman/annotations/ochuman_zero.json")
 build_subset(low_anns, coco, "data/OCHuman/annotations/ochuman_low.json")
 build_subset(mid_anns, coco, "data/OCHuman/annotations/ochuman_mid.json")
 build_subset(high_anns, coco, "data/OCHuman/annotations/ochuman_high.json")

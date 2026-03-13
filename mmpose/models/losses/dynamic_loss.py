@@ -122,12 +122,13 @@ class DynamicStructuralSimCCLoss(nn.Module):
         return F.softmax(logits * self.beta, dim=-1)
 
     def _to_prob_gt(self, labels: torch.Tensor) -> torch.Tensor:
-        # labels: [N, K, L] either already probs or logits-like soft labels
-        if self.label_softmax:
-            return F.softmax(labels * self.label_beta, dim=-1)
-        # assume already non-negative + normalized-ish; renorm to be safe
-        labels = labels.clamp_min(0)
-        return _renorm(labels)
+        s = labels.sum(dim=-1, keepdim=True)  # [N,K,1]
+        valid = s.squeeze(-1) > 0             # [N,K]
+
+        probs = torch.zeros_like(labels)
+        if valid.any():
+            probs[valid] = F.softmax(labels[valid] * self.label_beta, dim=-1)
+        return probs
 
     def _struct_sum(
         self,
@@ -172,11 +173,18 @@ class DynamicStructuralSimCCLoss(nn.Module):
         else:
             w = torch.ones((N, K), device=pred_x.device, dtype=pred_x.dtype)
 
+
+
+        gx_test_softmax = F.softmax(gt_x * self.label_beta, dim=-1)
+        gx_test_renorm = _renorm(gt_x.clamp_min(0))
+
+ 
         # prob space
         px = self._to_prob_pred(pred_x)
         py = self._to_prob_pred(pred_y)
         gx = self._to_prob_gt(gt_x)
         gy = self._to_prob_gt(gt_y)
+
 
         # structure sums
         psx = self._struct_sum(px, w)
@@ -192,7 +200,6 @@ class DynamicStructuralSimCCLoss(nn.Module):
         # per (N,K,L) -> per (N,K)
         loss_x = self.kl(log_psx, gsx).mean(dim=-1)
         loss_y = self.kl(log_psy, gsy).mean(dim=-1)
-
         loss_nk = loss_x + loss_y  # [N, K]
 
         # only keep limb joints

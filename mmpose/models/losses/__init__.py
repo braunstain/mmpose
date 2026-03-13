@@ -13,6 +13,7 @@ from .regression_loss import (BoneLoss, L1Loss, MPJPELoss,
                               RLELoss, SemiSupervisionLoss, SmoothL1Loss,
                               SoftWeightSmoothL1Loss, SoftWingLoss, WingLoss)
 from .dynamic_loss import DynamicStructuralSimCCLoss
+from .bone_length_loss import BoneVectorSimCCLoss
 
 __all__ = [
     'KeypointMSELoss', 'KeypointOHKMMSELoss', 'SmoothL1Loss', 'WingLoss',
@@ -21,5 +22,5 @@ __all__ = [
     'KLDiscretLoss', 'MultipleLossWrapper', 'JSDiscretLoss', 'CombinedLoss',
     'AssociativeEmbeddingLoss', 'SoftWeightSmoothL1Loss',
     'MPJPEVelocityJointLoss', 'FeaLoss', 'KDLoss', 'OKSLoss', 'IoULoss',
-    'VariFocalLoss', 'MLECCLoss', 'DynamicStructuralSimCCLoss'
+    'VariFocalLoss', 'MLECCLoss', 'DynamicStructuralSimCCLoss', 'BoneVectorSimCCLoss'
 ]

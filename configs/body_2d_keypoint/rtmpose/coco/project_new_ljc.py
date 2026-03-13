@@ -100,18 +100,6 @@ model = dict(
             beta=10.0,
             label_softmax=True
         ),
-        struct_loss=dict(
-            type='DynamicStructuralSimCCLoss',
-            beta=10.0,                # keep same as KLDiscretLoss
-            label_softmax=True,       # keep same behavior
-            label_beta=10.0,          # safe default; can match your KL if you use it
-            use_target_weight=True,
-            loss_weight=5,         # start SMALL (0.05–0.2). Don't start at 1.0.
-            warmup_epochs=0,          # no struct loss for first 5 epochs
-            ramp_epochs=5,           # then ramp up linearly over 20 epochs
-            schedule='step',              # "linear" or "step" (we find step more stable)
-            include_only_valid_neighbors=True,
-        ),
         decoder=codec
     ),
     # keep this consistent with your baseline eval
@@ -130,7 +118,7 @@ backend_args = dict(backend='local')
 train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
     dict(type='GetBBoxCenterScale'),
-    dict(type='LimbJointAugmentation', p=0.5, occ_ratio=0.15, size_ratio=0.15),
+    dict(type='LimbJointAugmentation', p=1, occ_ratio=0.35, size_ratio=0.2),
     dict(type='RandomFlip', direction='horizontal'),
     dict(type='RandomHalfBody'),
     dict(

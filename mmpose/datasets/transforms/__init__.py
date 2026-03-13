@@ -17,6 +17,7 @@ from .occlusion_weights import OcclusionWeighting
 from .debug_keys import DebugKeys
 from .lja_occ import LimbJointAugmentation
 from .DumpAugmentedSamples import DumpAugmentedSamples
+from .HumanOccCopyPaste import HumanOccCopyPaste
 
 __all__ = [
     'GetBBoxCenterScale', 'RandomBBoxTransform', 'RandomFlip',
@@ -26,5 +27,6 @@ __all__ = [
     'GenerateTarget', 'KeypointConverter', 'RandomFlipAroundRoot',
     'FilterAnnotations', 'YOLOXHSVRandomAug', 'YOLOXMixUp', 'Mosaic',
     'BottomupRandomCrop', 'BottomupRandomChoiceResize', 'HandRandomFlip',
-    'SingleHandConverter', 'OcclusionWeighting', 'DebugKeys', 'DumpAugmentedSamples', 'LimbJointAugmentation'
+    'SingleHandConverter', 'OcclusionWeighting', 'DebugKeys',
+    'DumpAugmentedSamples', 'LimbJointAugmentation', 'HumanOccCopyPaste'
 ]

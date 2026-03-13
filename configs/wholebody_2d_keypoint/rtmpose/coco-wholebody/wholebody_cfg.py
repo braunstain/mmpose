@@ -1,8 +1,8 @@
 _base_ = ['../../../_base_/default_runtime.py']
 
 # runtime
-max_epochs = 10
-stage2_num_epochs = 10
+max_epochs = 270
+stage2_num_epochs = 30
 base_lr = 4e-3
 
 train_cfg = dict(max_epochs=max_epochs, val_interval=10)
@@ -24,18 +24,17 @@ param_scheduler = [
         begin=0,
         end=1000),
     dict(
-        # use cosine lr from 210 to 420 epoch
         type='CosineAnnealingLR',
         eta_min=base_lr * 0.05,
-        begin=0,
+        begin=max_epochs // 2,
         end=max_epochs,
-        T_max=max_epochs,
+        T_max=max_epochs // 2,
         by_epoch=True,
         convert_to_iter_based=True),
 ]
 
 # automatically scaling LR based on the actual training batch size
-auto_scale_lr = dict(base_batch_size=1024)
+auto_scale_lr = dict(base_batch_size=512)
 
 # codec settings
 codec = dict(
@@ -69,12 +68,12 @@ model = dict(
             type='Pretrained',
             prefix='backbone.',
             checkpoint='https://download.openmmlab.com/mmpose/v1/projects/'
-            'rtmposev1/cspnext-m_udp-aic-coco_210e-256x192-f2f7d6f6_20230130.pth'  # noqa
+            'rtmposev1/cspnext-m_udp-aic-coco_210e-256x192-f2f7d6f6_20230130.pth'  # noqa: E501
         )),
     head=dict(
         type='RTMCCHead',
         in_channels=768,
-        out_channels=17,
+        out_channels=133,
         input_size=codec['input_size'],
         in_featuremap_size=tuple([s // 32 for s in codec['input_size']]),
         simcc_split_ratio=codec['simcc_split_ratio'],
@@ -94,7 +93,7 @@ model = dict(
             beta=10.,
             label_softmax=True),
         decoder=codec),
-    test_cfg=dict(flip_test=True))
+    test_cfg=dict(flip_test=True, ))
 
 # base dataset settings
 dataset_type = 'CocoDataset'
@@ -133,7 +132,7 @@ train_pipeline = [
                 min_holes=1,
                 min_height=0.2,
                 min_width=0.2,
-                p=1.),
+                p=1.0),
         ]),
     dict(type='GenerateTarget', encoder=codec),
     dict(type='PackPoseInputs')
@@ -178,31 +177,29 @@ train_pipeline_stage2 = [
 
 # data loaders
 train_dataloader = dict(
-    batch_size=256,
-    num_workers=2,
-    persistent_workers=False,
+    batch_size=64,
+    num_workers=10,
+    persistent_workers=True,
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
         data_mode=data_mode,
-        ann_file='annotations/person_keypoints_train2017.json',
-        data_prefix=dict(img='images/'),
+        ann_file='annotations/coco_wholebody_train_v1.0.json',
+        data_prefix=dict(img='train2017/'),
         pipeline=train_pipeline,
     ))
 val_dataloader = dict(
-    batch_size=64,
-    num_workers=2,
-    persistent_workers=False,
+    batch_size=32,
+    num_workers=10,
+    persistent_workers=True,
     drop_last=False,
     sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
     dataset=dict(
         type=dataset_type,
         data_root=data_root_och,
         data_mode=data_mode,
-        ann_file='annotations/test_split/ochuman_zero.json',
-        # bbox_file=f'{data_root}person_detection_results/'
-        # 'COCO_val2017_detections_AP_H_56_person.json',
+        ann_file='annotations/val_split/ochuman_non_zero.json',
         data_prefix=dict(img='images/'),
         test_mode=True,
         pipeline=val_pipeline,
@@ -211,8 +208,8 @@ test_dataloader = val_dataloader
 
 # hooks
 default_hooks = dict(
-    logger=dict(type='LoggerHook', interval=10),
-    checkpoint=dict(save_best='coco/AP', rule='greater', max_keep_ckpts=1))
+    checkpoint=dict(
+        save_best='coco-wholebody/AP', rule='greater', max_keep_ckpts=1))
 
 custom_hooks = [
     dict(
@@ -229,6 +226,6 @@ custom_hooks = [
 
 # evaluators
 val_evaluator = dict(
-    type='CocoMetric',
-    ann_file=data_root_och + 'annotations/test_split/ochuman_zero.json')
+    type='CocoWholeBodyMetric',
+    ann_file=data_root_och + 'annotations/val_split/ochuman_non_zero.json')
 test_evaluator = val_evaluator
