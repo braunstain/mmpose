@@ -137,9 +137,6 @@ train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
     dict(type='GetBBoxCenterScale'),
 
-    # your LJB augmentation
-    dict(type='LimbJointAugmentation', p=0.5, occ_ratio=0.2, size_ratio=0.2),
-
     dict(type='RandomFlip', direction='horizontal'),
     dict(type='RandomHalfBody'),
     dict(
@@ -155,8 +152,18 @@ train_pipeline = [
         transforms=[
             dict(type='Blur', p=0.1),
             dict(type='MedianBlur', p=0.1),
+            dict(
+                type='CoarseDropout',
+                max_holes=1,
+                max_height=0.4,
+                max_width=0.4,
+                min_holes=1,
+                min_height=0.2,
+                min_width=0.2,
+                p=1)
         ]
     ),
+    dict(type='DumpAugmentedSamples', max_save=50),
     dict(type='GenerateTarget', encoder=codec),
     dict(type='PackPoseInputs')
 ]

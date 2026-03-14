@@ -3,13 +3,13 @@ $ErrorActionPreference = "Continue"
 $config = "configs\body_2d_keypoint\rtmpose\coco\project_baseline.py"
 
 $expDirs = @(
-    "work_dirs\struct_lr_5e-4"
+    "work_dirs\ljc_bone_lr_5e-4"
 )
 $annPairs = @(
     @{ ds = "annotations/val_split/ochuman_non_zero.json";  ev = "data/OCHuman/annotations/val_split/ochuman_non_zero.json" },
-    @{ ds = "annotations/val_split/ochuman_zero.json";      ev = "data/OCHuman/annotations/val_split/ochuman_zero.json" },
-    @{ ds = "annotations/test_split/ochuman_non_zero.json"; ev = "data/OCHuman/annotations/test_split/ochuman_non_zero.json" },
-    @{ ds = "annotations/test_split/ochuman_zero.json";     ev = "data/OCHuman/annotations/test_split/ochuman_zero.json" }
+    @{ ds = "annotations/val_split/ochuman_zero.json";      ev = "data/OCHuman/annotations/val_split/ochuman_zero.json" }
+ #   @{ ds = "annotations/test_split/ochuman_non_zero.json"; ev = "data/OCHuman/annotations/test_split/ochuman_non_zero.json" },
+ #   @{ ds = "annotations/test_split/ochuman_zero.json";     ev = "data/OCHuman/annotations/test_split/ochuman_zero.json" }
 )
 
 
@@ -65,16 +65,16 @@ foreach ($expDir in $expDirs) {
                 Write-Host "AR line not found" -ForegroundColor Red
             }
 
-            $lr = ($expDir -replace "work_dirs\\struct_lr_5e-4","")
+            $lr = "5e-4" #Hardcoded for now since we're only testing one LR.
 
             $split = if ($dsAnn -match "val_split") {"val"} else {"test"}
             $occ   = if ($dsAnn -match "non_zero") {"occ"} else {"no_occ"}
 
-            if (-not (Test-Path "eval_summary_struct_lr_5e-4.csv")) {
-                "lr,epoch,split,occ,AP,AR" | Out-File "eval_summary_struct_lr_5e-4.csv"
+            if (-not (Test-Path "eval_summary_ljc_bone_lr_5e-4.csv")) {
+                "lr,epoch,split,occ,AP,AR" | Out-File "eval_summary_ljc_bone_lr_5e-4.csv"
             }
 
-            Add-Content "eval_summary_struct_lr_5e-4.csv" "$lr,$epoch,$split,$occ,$apValue,$arValue"
+            Add-Content "eval_summary_ljc_bone_lr_5e-4.csv" "$lr,$epoch,$split,$occ,$apValue,$arValue"
             }
         }
 

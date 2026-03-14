@@ -6,7 +6,7 @@ _base_ = ['../../../_base_/default_runtime.py']
 # Runtime
 # =========================
 max_epochs = 20
-base_lr = 5e-3   # head-only fine-tuning can usually tolerate a bit higher LR
+base_lr = 5e-4   # head-only fine-tuning can usually tolerate a bit higher LR
 train_cfg = dict(max_epochs=max_epochs, val_interval=1)
 randomness = dict(seed=21)
 
@@ -17,7 +17,7 @@ randomness = dict(seed=21)
 # This is the safest config-only approach.
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.01),
     paramwise_cfg=dict(
         norm_decay_mult=0.0,
         bias_decay_mult=0.0,
@@ -29,7 +29,7 @@ param_scheduler = [
     dict(type='LinearLR', start_factor=0.1, by_epoch=False, begin=0, end=200),
     dict(
         type='CosineAnnealingLR',
-        eta_min=base_lr * 0.05,
+        eta_min=base_lr * 0.1,
         begin=0,
         end=max_epochs,
         T_max=max_epochs,
@@ -109,13 +109,10 @@ model = dict(
             beta=10.0,
             label_softmax=True
         ),
-
-        # your existing structural loss
-        # your dynamic structural loss
-        # IMPORTANT:
-        # this only works if your modified head actually reads `dyn_struct_loss`
-        # and adds it into the returned losses dict.
-
+        struct_loss=dict(
+            type='BoneVectorSimCCLoss',
+            loss_weight=0.01
+        ),
         decoder=codec
     ),
     test_cfg=dict(flip_test=True)
@@ -138,7 +135,6 @@ train_pipeline = [
     dict(type='GetBBoxCenterScale'),
 
     # your LJB augmentation
-    dict(type='LimbJointAugmentation', p=0.5, occ_ratio=0.2, size_ratio=0.2),
 
     dict(type='RandomFlip', direction='horizontal'),
     dict(type='RandomHalfBody'),

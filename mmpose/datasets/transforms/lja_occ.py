@@ -26,7 +26,7 @@ class LimbJointAugmentation(BaseTransform):
                  occ_ratio=0.15,     # r in the paper
                  size_ratio=0.10,    # s in the paper
                  limb_ids=None,
-                 only_visible=True,  # occlude only v==2 joints (paper does this)
+                 only_visible=True,  # occlude only v==2 joints
                  rng_seed=21):
         self.p = float(p)
         self.occ_ratio = float(occ_ratio)
@@ -55,13 +55,11 @@ class LimbJointAugmentation(BaseTransform):
     def _bbox_hw(results):
         bbox = results.get('bbox', None)
         if bbox is None:
+            print("none")
             return None, None
 
         bbox = np.array(bbox, dtype=np.float32)
 
-        # Common cases:
-        # (4,) -> [x,y,w,h]
-        # (1,4) or (N,4) -> take first row
         if bbox.ndim == 2:
             if bbox.shape[0] < 1 or bbox.shape[1] < 4:
                 return None, None
@@ -96,7 +94,6 @@ class LimbJointAugmentation(BaseTransform):
 
         bbox_h, bbox_w = self._bbox_hw(results)
         if bbox_h is None:
-            # Fallback: use image dims if bbox missing (shouldn’t happen in your pipeline)
             bbox_h, bbox_w = float(H), float(W)
 
         # Candidate limb joints

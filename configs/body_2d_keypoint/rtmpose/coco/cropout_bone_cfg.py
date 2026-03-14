@@ -1,48 +1,44 @@
-# project_head_only_lja_dynloss_ochval.py
+# project_baseline_safe.py
 
 _base_ = ['../../../_base_/default_runtime.py']
 
-# =========================
-# Runtime
-# =========================
+# ===== Runtime =====
 max_epochs = 20
-base_lr = 5e-3   # head-only fine-tuning can usually tolerate a bit higher LR
+base_lr = 5e-4  # gentle fine-tune
 train_cfg = dict(max_epochs=max_epochs, val_interval=1)
 randomness = dict(seed=21)
 
-# =========================
-# Optimizer
-# =========================
-# "Freeze backbone" here is done in the optimizer by giving backbone lr=0.
-# This is the safest config-only approach.
+# ===== Optimizer =====
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.01),
     paramwise_cfg=dict(
+        # keep BN/bias out of weight decay
         norm_decay_mult=0.0,
         bias_decay_mult=0.0,
-        bypass_duplicate=True,
+        bypass_duplicate=True
     )
 )
 
+# ===== LR schedule (simple + stable) =====
+# short warmup then cosine
 param_scheduler = [
     dict(type='LinearLR', start_factor=0.1, by_epoch=False, begin=0, end=200),
     dict(
         type='CosineAnnealingLR',
-        eta_min=base_lr * 0.05,
+        eta_min=base_lr * 0.1,
         begin=0,
         end=max_epochs,
         T_max=max_epochs,
         by_epoch=True,
-        convert_to_iter_based=True,
+        convert_to_iter_based=True
     )
 ]
 
+# IMPORTANT: disable auto scaling so LR is what you think it is
 auto_scale_lr = dict(enable=False)
 
-# =========================
-# Codec
-# =========================
+# ===== Codec =====
 codec = dict(
     type='SimCCLabel',
     input_size=(192, 256),
@@ -52,9 +48,7 @@ codec = dict(
     use_dark=False
 )
 
-# =========================
-# Model
-# =========================
+# ===== Model =====
 model = dict(
     type='TopdownPoseEstimator',
     data_preprocessor=dict(
@@ -70,12 +64,12 @@ model = dict(
         expand_ratio=0.5,
         deepen_factor=0.67,
         widen_factor=0.75,
-        frozen_stages=4,  # freeze the entire backbone
         out_indices=(4,),
+        frozen_stages=4,
         channel_attention=True,
         norm_cfg=dict(type='SyncBN'),
         act_cfg=dict(type='SiLU'),
-        norm_eval=True,  # useful when backbone is effectively frozen
+        # this init_cfg is overwritten by load_from (fine to leave)
         init_cfg=dict(
             type='Pretrained',
             prefix='backbone.',
@@ -101,45 +95,34 @@ model = dict(
             use_rel_bias=False,
             pos_enc=False
         ),
-
-        # regular RTMPose loss
         loss=dict(
             type='KLDiscretLoss',
             use_target_weight=True,
             beta=10.0,
             label_softmax=True
         ),
-
-        # your existing structural loss
-        # your dynamic structural loss
-        # IMPORTANT:
-        # this only works if your modified head actually reads `dyn_struct_loss`
-        # and adds it into the returned losses dict.
-
+        struct_loss=dict(
+            type='BoneVectorSimCCLoss',
+            loss_weight=0.01
+        ),
         decoder=codec
     ),
+    # keep this consistent with your baseline eval
     test_cfg=dict(flip_test=True)
 )
 
-# =========================
-# Datasets
-# =========================
+
+# ===== Datasets =====
 dataset_type = 'CocoDataset'
 data_mode = 'topdown'
 data_root = 'data/train2017/'
 data_root_och = 'data/OCHuman/'
 backend_args = dict(backend='local')
 
-# =========================
-# Pipelines
-# =========================
+# ===== Pipelines =====
 train_pipeline = [
     dict(type='LoadImage', backend_args=backend_args),
     dict(type='GetBBoxCenterScale'),
-
-    # your LJB augmentation
-    dict(type='LimbJointAugmentation', p=0.5, occ_ratio=0.2, size_ratio=0.2),
-
     dict(type='RandomFlip', direction='horizontal'),
     dict(type='RandomHalfBody'),
     dict(
@@ -155,6 +138,15 @@ train_pipeline = [
         transforms=[
             dict(type='Blur', p=0.1),
             dict(type='MedianBlur', p=0.1),
+            dict(
+                type='CoarseDropout',
+                max_holes=1,
+                max_height=0.4,
+                max_width=0.4,
+                min_holes=1,
+                min_height=0.2,
+                min_width=0.2,
+                p=0.5),
         ]
     ),
     dict(type='GenerateTarget', encoder=codec),
@@ -183,9 +175,8 @@ train_dataloader = dict(
     )
 )
 
-# VALIDATE ON OCHUMAN VAL
 val_dataloader = dict(
-    batch_size=64,
+    batch_size=32,
     num_workers=6,
     persistent_workers=True,
     drop_last=False,
@@ -201,63 +192,35 @@ val_dataloader = dict(
     )
 )
 
-# keep test separate if you have a held-out test split
-test_dataloader = dict(
-    batch_size=64,
-    num_workers=6,
-    persistent_workers=True,
-    drop_last=False,
-    sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
-    dataset=dict(
-        type=dataset_type,
-        data_root=data_root_och,
-        data_mode=data_mode,
-        ann_file='annotations/test_split/ochuman_non_zero.json',
-        data_prefix=dict(img='images/'),
-        test_mode=True,
-        pipeline=val_pipeline
-    )
-)
+test_dataloader = val_dataloader
 
-# =========================
-# Hooks
-# =========================
+# ===== Hooks =====
 default_hooks = dict(
     logger=dict(type='LoggerHook', interval=10),
-    checkpoint=dict(
-        type='CheckpointHook',
-        interval=1,
-        max_keep_ckpts=20,
-        save_best='coco/AP',
-        rule='greater'
-    )
+    checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=20)
 )
 
+# EMA helps stabilize short fine-tunes
 custom_hooks = [
     dict(
         type='EMAHook',
         ema_type='ExpMomentumEMA',
-        momentum=0.0002,
+        momentum=0.001,
         update_buffers=True,
         priority=49
     )
 ]
 
-# =========================
-# Evaluators
-# =========================
+# ===== Evaluator =====
 val_evaluator = dict(
     type='CocoMetric',
     ann_file=data_root_och + 'annotations/val_split/ochuman_non_zero.json'
 )
-
 test_evaluator = dict(
     type='CocoMetric',
     ann_file=data_root_och + 'annotations/test_split/ochuman_non_zero.json'
 )
 
-# =========================
-# Weights
-# =========================
+# ===== Start from official RTMPose-M pose weights =====
 load_from = 'checkpoints/rtmpose-m_simcc-aic-coco_pt-aic-coco_420e-256x192-63eb25f7_20230126.pth'
 resume = False
