@@ -11,6 +11,7 @@ OCHuman_Api/
 # Large artifacts
 *.zip
 *.pth
+!checkpoints/*.pth
 *.pt
 *.ckpt
 *.pkl
